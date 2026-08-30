@@ -1,0 +1,4 @@
+execve("./C1-Introduction/source/hello_asm", ["./C1-Introduction/source/hello_a"...], 0x7ffc33f4c130 /* 44 vars */) = 0
+write(1, "Hello World\n", 12)           = 12
+exit(0)                                 = ?
++++ exited with 0 +++
