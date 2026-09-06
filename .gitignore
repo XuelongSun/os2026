@@ -8,3 +8,4 @@
 .vscode/
 *.o
 *.s
+test/

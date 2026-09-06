@@ -212,7 +212,7 @@ MS: Windows 1.0 (1985) -> Window NT (1993) -> ....
 ### 操作系统的功能与特点
 为了更直观的感受操作系统的功能，我们用一个C程序为例来体会。
 
-对于如下C程序(这就是一个program)：
+对于如下C程序：
 ```c
 // source/hello.c
 #include <stdio.h>
@@ -265,19 +265,19 @@ xxd -g 1 -l 64 hello_c
 ldd hello_c
 readelf -l hello_c | grep -A5 INTERP
 ```
-然后你会发现C程序汇编之后调用了这里：
+仔细查看`hello.s`你会发现是在这一行调用了上面的库函数：
 ```nasm
 call  printf@PLT
 ```
-也就是说，目前我们追溯到的流程为：
+目前，我们追溯到的流程为：
 ```
 printf (.c) -> print@PLT (.s) -> lib -> ? 
 ```
-让我们再追踪一下(注意`strace`命令追踪用户态向内核态时的系统调用)：
+让我们再追踪一下(注意`strace`命令追踪用户态向内核态的系统调用)：
 ```
 strace ./hello_c
 ```
-我们发现含有`Hello World`的行为：
+我们发现含有`Hello World`的行：
 ```
 write(1, "Hello World\n", 12) = 12
 ```
@@ -299,7 +299,7 @@ readlink /proc/$$/fd/1
 ##### 汇编程序的执行
 也许这一大堆事情都是 C 和 printf 搞出来的。那我们不用 C 库，直接写汇编怎么样？
 
-我们写一个如下的汇编程序：
+上代码：
 ```nasm
 ; source/hello.asm
 global _start
@@ -337,7 +337,7 @@ _start -> syscall -> OS Kernel
 - `rsi <- msg相对地址`，所写字符串buffer的起始地址
 - `rdx <- msg长度`, 所写字符串的长度
 
-那么请问，如果没有操作系统，这个汇编程序可以运行吗？
+那么请问，如果没有操作系统，这个编译连接后的汇编程序可以运行吗？
 
 答案是不能，因为这些寄存器中的值如何解释，数值如何对应具体的硬件，都是Linux系统内核定义的！
 
