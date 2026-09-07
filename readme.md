@@ -12,13 +12,17 @@
   - 操作系统的功能和特点
 #### [C2 - Process Manage](/C2-ProcessManage/readme.md)
   - 程序 - 线程 - 进程
-  - 进程并发 - 互斥
+  - 并发 Concurrency
+  - IPC: Inter-Process Communication
+  - 互斥 Mutual Exclusion
     - 锁
     - Peterson 算法
+    - 原子操作
     - mutex
-  - 进程并发 - 同步
+  - 同步 Synchronization
     - 生产者与消费者问题
     - 信号量与条件变量
     - 哲学家进餐问题
-  - 进程通信
+
+
 ### Labs

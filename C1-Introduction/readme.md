@@ -326,7 +326,7 @@ _start:
 nasm -f elf64 hello.asm -o hello.o
 ld hello.o -o hello_asm
 ```
-运行`hello_asm`也可以正常打印。用`strac`观察它的运行过程非常简单，
+运行`hello_asm`也可以正常打印。用`strace`观察它的运行过程非常简单，
 ```
 _start -> syscall -> OS Kernel
 ```
