@@ -17,12 +17,11 @@
   - 互斥 Mutual Exclusion
     - 锁
     - Peterson 算法
-    - 原子操作
-    - mutex
+    - 硬件原语 Hardware Primitives
+    - 自旋锁 Spinlock
+    - 互斥锁 Mutex
   - 同步 Synchronization
-    - 生产者与消费者问题
-    - 信号量与条件变量
-    - 哲学家进餐问题
+
 
 
 ### Labs
