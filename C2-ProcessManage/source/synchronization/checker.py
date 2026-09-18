@@ -30,3 +30,6 @@ while True:
             print(f'Error: {strings[:n-1]}' + colorama.Fore.RED + strings[n-1] + colorama.Style.RESET_ALL + strings[n:])
             print(colorama.Fore.RED + ' '*(n+6) + '^' + colorama.Style.RESET_ALL)
             break
+        
+        if n % 1_00_000 == 0:
+            print(f'{n} OK.')

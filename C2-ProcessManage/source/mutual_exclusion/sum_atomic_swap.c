@@ -10,10 +10,7 @@ atomic_bool locked = ATOMIC_VAR_INIT(false);
 
 void lock(void)
 {
-    while (atomic_exchange_explicit(
-               &locked,
-               true,
-               memory_order_acquire));
+    while (atomic_exchange(&locked, true));
 }
 
 void unlock(void)

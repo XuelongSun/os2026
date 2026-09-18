@@ -3,11 +3,21 @@
 #include<unistd.h>
 #include<stdlib.h>
 
+int limit, count = 0;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
 void* producer(void *args)
 {
     while(1)
     {
+        pthread_mutex_lock(&lock);
+        if(count >= limit){
+            pthread_mutex_unlock(&lock);
+            continue;
+        }
+        count++;
         printf("{");
+        pthread_mutex_unlock(&lock);
     }
 }
 
@@ -15,19 +25,24 @@ void* consumer(void *args)
 {
     while(1)
     {
+        pthread_mutex_lock(&lock);
+        if(count <= 0){
+            pthread_mutex_unlock(&lock);
+            continue;
+        }
+        count--;
         printf("}");
+        pthread_mutex_unlock(&lock);
     }
 }
 
 int main(int argc, char *argv[])
 {   
-    // argv[1]: number of producers
-    // argv[2]: number of consumers
-    // argv[3]: buffer size
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <num_producers> <num_consumers> <buffer_size>\n", argv[0]);
         return 1;
     }
+    limit = atoi(argv[3]);
     pthread_t p[atoi(argv[1])], c[atoi(argv[2])];
     for (int i = 0; i < atoi(argv[1]); i++) {
         pthread_create(&p[i], NULL, producer, NULL);

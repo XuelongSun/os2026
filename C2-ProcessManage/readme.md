@@ -635,7 +635,7 @@ void swap(bool *a, bool *b) {
     lock = false;
 } 
 ```
-可以这样理解：临界区前放着一把钥匙`key`，想要进去的人需要拿自己手中的锁去换钥匙，如果换到的确实是钥匙`key = true`，那就可以进去，否则说明钥匙被别人先换走了！
+可以这样理解：不断把`true`和`lock`做原子交换，直到发现交换之前`lock`是 `false`。
 
 同样的，我们可以在C11的支持下来通过`exchange`来实现我们的互斥：
 ```c
@@ -662,9 +662,15 @@ void unlock(void)
 ```
 将上面的代码融入`sum.c`形成使用`swap(xchg)`来实现互斥:[sum_atomic_swap.c](./source/mutual_exclusion/sum_atomic_swap.c)。运行结果同样是`2,000,000`！
 
+> 注意：`atomic_exchange_explicit(*，true, *)`函数返回交换前lock的值：
+> - `true`：说明别人已经拿到权限，是locked的状态
+> - `false`: 如果原来locked=false，现在把钥匙的true换到了现在locked
+
+这个本质和`test-and-set`并无很多区别。
+
 仔细分析我们的互斥程序，请问：当某个线程拿不到进入临界资源的权限时，它的动作是什么？
 
-没错，就是一直检查是否可进入，因此我们上面实现的锁可被形象地称之为**自旋锁Spinlock**。
+没错，就是一直检查是否可进入(或者一直在执行`exchange`)，因此我们上面实现的锁可被形象地称之为**自旋锁Spinlock**。
 
 #### 自旋锁-Spinlock
 
@@ -696,13 +702,14 @@ void syscall(int flag, _t* lk){
 ```
 你可以看到，这里涉及到了系统调用，因为让一个进程睡眠已经超出了互斥这个议题，涉及到了操作系统的进程调度问题，我们会在下一章介绍，这里大家知道mutex解决忙等的基本思想即可，并且明白：
 >spinlock 与 mutex 的核心互斥机制可以完全一样；真正不同的是失败后的等待方式。
+
 但是，请问：
 
 > 阻塞进程就一定比忙等好嘛？
 
 不一定，要看情况，因为进程切换有开销！所以，等得不久就可以忙等，反而划算！所以，有了[Futex](https://jyywiki.cn/pages/OS/manuals/futexes-are-tricky.pdf)! (感兴趣的可以去了解，比较复杂)
 
-虽然我们很难去实现一个mutex, 但我们仍然可以演示mutex的行为。
+虽然我们很难去实现一个mutex(需要使用系统调用阻塞进程), 但我们仍然可以演示mutex的行为。
 
 想想我们这里不是在用线程来讲进程并发的共享内存嘛，而C语言的线程库，是提供了用于线程的互斥锁的：
 ```c
@@ -790,10 +797,358 @@ timeout --signal=SIGTERM 0.1s ./pro_con.o 2 2 4 # 运行0.1s
 ```shell
 ./producer_consumer 2 2 4 | python3 checker.py 4
 ```
-你会发现，很难正确！因此，问题的关键是，如何在多线程并发执行时保证输出的合法性？该如何解决生产者-消费者这个并发同步问题？
+> 注意：这里如果管道后python3进程因为检查到错误而退出，管道就不再有接收端，Linux会清理管道，也会清理发送端进程
+
+你会发现，直接多线程打印很难正确！
+
+因此，问题的关键是，如何在多线程并发执行时保证输出的合法性？该如何解决生产者-消费者这个并发同步问题？
 
 #### 互斥锁Mutex解决同步问题
-我们能否用解决互斥的方法来解决这个生产者消费者问题呢？
+我们能否用解决互斥的方法来解决这个生产者消费者问题呢？但是，互斥只能保证“打印括号”(读写共享buffer)的独占性，不能保证顺序的正确性。怎么办？
 
-#### 条件变量
-#### 信号量
+问题的本质在于：
+- 没有左括号，就不能有右括号(货架已空，没有东西可以消费)
+- 如果左括号满了，就不能再打印左括号(货架已满，生产出来没处放)
+
+因此，我们只要随时监控左括号`{`的数量即可，然后在临界区里判断当前左括号的数量：
+- `count >= limit`：货架已满，producer等待
+- `count <= 0`：货架已空，consumer等待
+
+关键代码实现：
+```c
+// synchronization/producer_consumer_mutex.c
+int limit, count = 0;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+void* producer(void *args)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&lock);
+        if(count >= limit){
+            pthread_mutex_unlock(&lock);
+            continue;
+        }
+        count++;
+        printf("{");
+        pthread_mutex_unlock(&lock);
+    }
+}
+
+void* consumer(void *args)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&lock);
+        if(count <= 0){
+            pthread_mutex_unlock(&lock);
+            continue;
+        }
+        count--;
+        printf("}");
+        pthread_mutex_unlock(&lock);
+    }
+}
+```
+编译运行上述程序：
+```
+./producer_consumer_mutex 2 2 3 | python3 checker.py 3
+```
+会发现我们使用互斥锁确实可以解决同步问题！
+
+但这个程序有没有什么问题？
+
+我们知道互斥锁本身不是自旋的，但是这个程序需要一直被wakeup然后检查count的值是否已经满足要求，这也是一种忙等，而且代价更大。
+
+如何优化？
+
+#### 条件变量 Conditional Variable
+**条件变量Conditional Variable**允许我们在条件不满足时让进程进入睡眠状态，条件满足时唤醒进程。使用时的一般语义：
+```c
+#include<pthread.h>
+pthread_mutex_lock(&mutex);
+pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
+
+if (!condition) {
+    pthread_cond_wait(&cv, &mutex);
+}
+
+// or pthread_cond_broadcast(&cv)
+pthread_cond_signal(&cv); 
+
+pthread_mutex_unlock(&mutex);
+```
+条件变量的基本机制是，检查条件，如果不满足，进程就好进入改条件变量的等待队列的末尾睡眠，当有其他进程执行`signal`后，就会唤醒等待队列中的第一个进程。但如果使用了`broadcast`就会唤醒等待队列中的所有进程！
+
+但是，你会发现，上述代码中还使用了互斥锁，为什么？
+
+这是为了保证：
+1. 检查条件不满足
+2. 等待/进入睡眠
+
+这两个操作的原子性！如果保证不了，就会发生唤醒错过(lost wakeup):
+```
+    A                   B
+
+  检查condition
+  不满足
+    ↓
+                   改变 condition
+                        ↓
+                   signal/wakeup
+   sleep
+```
+进程A完美错过了进程B的唤醒，直接进入睡眠。
+
+好了，明白了条件变量的工作原理，下面思考如何使用条件变量解决生产者-消费者问题？
+
+其实，只需要把刚才mutex的实现中的`pthread_mutex_unlock(&lock);`换成`pthread_cond_wait(&cv, &mutex);`，在每个线程中再多一个唤醒操作即可：`pthread_cond_signal(&cv);`, 完整实现在[producer_consumer_cv.c](source/synchronization/producer_consumer_cv.c)。
+
+编译运行，我们先设置一个producer, 一个consumer：
+```shell
+./producer_consumer_cv 1 1 3 | python3 checker.py 3
+```
+发现运行正确！这样就解决了这个生产者消费者问题了嘛？
+
+现在我们修改一下，多一个consumer线程：
+```shell
+./producer_consumer_cv 1 2 3 | python3 checker.py 3
+```
+程序总会多打印右括号。如果我们多一个producer线程：
+```shell
+./producer_consumer_cv 2 1 3 | python3 checker.py 3
+```
+程序总会多打印左括号。这是什么原因呢？
+
+我们只有一个条件变量，这会导致2个consumer会被相互唤醒，2个producer也可以相互唤醒，但他们实际不会改变对方的`condition`，而只有producer可以是consumer的条件由不满足变为满足。因此，我们需要两个条件变量，来让同种线程之间不会被相互唤醒：
+```c
+void* producer(void *args)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&lock);
+        if(count >= limit){
+            pthread_cond_wait(&not_full, &lock);
+        }
+        count++;
+        printf("{");
+        pthread_cond_signal(&not_empty);
+        pthread_mutex_unlock(&lock);
+    }
+}
+
+void* consumer(void *args)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&lock);
+        if(count <= 0){
+            pthread_cond_wait(&not_empty, &lock);
+        }
+        count--;
+        printf("}");
+        pthread_cond_signal(&not_full);
+        pthread_mutex_unlock(&lock);
+    }
+}
+```
+但是这样仍然不够，因为从线程因为等待条件被唤醒到“重新拿到锁”之间，可能运行世界已经发生了变化(比如另一个线程改变了condition)，所以：
+> condition variable 唤醒的是线程，不是条件本身。
+
+醒来后还得再检查条件是否满足，如果不满足，还得继续睡！这也是我们在并发编程中需要强调的：
+>共享状态必须在持锁状态下重新验证。
+
+因此，我们需要将原程序中的`if(!condition)`改成`while(!condition)`！这样程序就可以正确地并发执行打印合法的括号了！
+
+那么你肯定又会问，既然每次起来都要检查，那是不是就没必要多个条件变量了？是的，完全正确，所以用条件变量解决同步问题的万能公式：
+```c
+pthread_mutex_lock(&mutex);
+while (!condition) {
+    pthread_cond_wait(&cv, &mutex);
+}
+// 运行到这里
+// 保证了condition一定成立
+pthread_cond_broadcast(&cv); 
+pthread_mutex_unlock(&mutex);
+```
+你需要：
+1. 定义一个互斥锁mutex
+2. 定义好条件，并用`while`判断
+3. 定义一个条件变量cv
+4. 唤醒时使用`broadcast`
+
+我们最终的实现在[producer_consumer_cv_general.c](source/synchronization/producer_consumer_cv_general.c)文件中。
+
+不过，如果我们仔细地分析一下使用条件变量解决生产者-消费者问题时`condition`的写法：
+- producer: `while(count>=limiti)`, 关心还有多少空位可以放
+- consumer: `while(count<=0)`，关系还有多少产品可以拿
+
+如果我们把"空位"和"产品"分别作为生产者和消费者的"可用资源"，而这种资源又会被另一方改变，你会发现他们执行的其实是同一套逻辑：
+```
+想使用一个资源：
+    如果数量 > 0：
+        数量减 1
+        继续执行
+    否则：
+        睡眠
+
+释放/产生一个资源：
+    数量加 1
+    如果有人等待：
+        唤醒      
+```
+那么，我们能否把上述的逻辑操作进行一个封装，从而实现：**原子地进行资源计数 + 睡眠唤醒**？
+
+当然可以，这个封装就是我们要说的信号量。
+
+#### 信号量 Semaphore
+有睡眠/唤醒**信号**的资源**量**，这个翻译太贴切了！为了保证资源量计算的正确性，就要求对资源的加减操作是原子的。因此我们可以全局量`S`为资源量，然后把把上述文字逻辑转换成伪代码：
+```c
+atomic {
+    if (S > 0)
+        S--;
+    else
+        sleep();
+}  
+
+atomic {
+    S++;
+    if (S <= 0)
+    wakeup();
+}  
+```
+再封装成函数：
+```c
+wait(S){
+    if (S > 0)
+        S--;
+    else
+        sleep();
+}  
+
+signal(S){
+    S++;
+    if (S <= 0)
+    wakeup();
+}  
+```
+这就是信号量的普遍定义了！我们通常把`wait()`称为P(prolaag = try + decrease)操作，把`signal()`操作称为V(verhoog = increase + post)操作。
+
+信号量的"量"是资源的量，比如一个停车场的所有停车位，一个更衣室的所有储物柜等等。这些量都是用一个少一个，释放一个就可以多一个。
+
+那如果`S=1`呢？这不就是互斥了吗！一个资源在任意时刻只能被一方独占！所以一个`S=1`的信号量就是一把锁，而且它有睡眠/唤醒机制，所以它是一把互斥锁Mutex。既然如此，那我们用它来解决一下之间的`sum.c`:
+```c
+// source/mutual_exclusion/sum_semaphore.c
+// 部分代码
+#include<semaphore.h>
+sem_t mutex;
+
+void *Tsum(void *arg) {
+    for (int i = 0; i < N; i++){
+        sem_wait(&mutex);
+        sum ++;
+        sem_post(&mutex);
+    }
+}
+int main(){
+    pthread_t tA, tB;
+    sem_init(&mutex, 0, 1);
+}
+```
+编译运行是正确的！也就是说：互斥锁是信号量的一种特殊情况~
+
+我们总结下信号量初始值的作用：
+- `S=n`: 资源数量
+- `S=1`: 互斥锁
+- `S=0`：执行流控制，必须先`post`后`wait`
+
+好了，既然信号量这么有用，那怎么解决我们的同步问题-生产者消费者问题呢？
+
+运用信号量解决同步问题的关键是设置好资源`S`的初始值，及其更新方式！在我们的生产者消费者问题中，我们需要：
+1. 信号量1-mutex：S=1, 保证互斥
+2. 信号量2-full：S=0，消费者的产品资源
+3. 信号量3-empty：S=limit，生产者的空位资源
+
+因此，可以这样来实现：
+```c
+// source/synchronization/producer_consumer_semaphore.c
+// 部分代码
+
+#include<semaphore.h>
+int limit;
+// 初始化
+sem_t mutex, empty, full;
+sem_init(&mutex, 0, 1);
+sem_init(&empty, 0, limit);
+sem_init(&full, 0, 0);
+
+// producer
+void* producer(void *args)
+{
+    while(1)
+    {
+        sem_wait(&empty);
+        sem_wait(&mutex);
+        printf("{");
+        sem_post(&mutex);
+        sem_post(&full);
+    }
+}
+
+// consumer
+void* consumer(void *args)
+{
+    while(1)
+    {
+        sem_wait(&full);
+        sem_wait(&mutex);
+        printf("}");
+        sem_post(&mutex);
+        sem_post(&empty);
+    }
+}
+```
+注意互斥锁是必须的，因为资源信号量只能保证执行的顺序，无法保证互斥地访问临界区！
+
+另外，这里`sem_wait()`和`sem_post()`的顺序不能颠倒！如果颠倒了，会发生什么问题，这里埋个伏笔，在今后的章节中，我们会讲到。
+
+#### 小节
+我们使用了互斥锁，条件变量和信号量来解决生产者消费者问题，这三个地比较如下：
+| 抽象                 | 核心问题        | 程序员维护什么         |
+| ------------------ | ----------- | --------------- |
+| Mutex              | 谁能进入临界区？    | ownership       |
+| Condition Variable | 某个状态什么时候满足？ | condition/state |
+| Semaphore          | 还有多少个许可可用？  | permit count    |
+
+更容易理解，可以这样表述：
+```
+Mutex:
+    “现在谁占着？”
+
+Condition Variable:
+    “条件变了吗？起来重新看看。”
+
+Semaphore:
+    “现在还有几个名额？”
+```
+但是，对于解决同步问题，我们不用会出现忙等的互斥锁方案。
+
+那么，针对具体的进程同步问题，条件变量和信号量使用哪一个呢？这取决于你问题的属性，如果需要等待的东西是：
+- queue 不为空 
+- 系统进入 READY 
+- x > y 
+- 任务完成 && 未取消
+- 缓存已加载
+
+那么使用CV就很自然，但如果很明显跟资源数量有关：
+- 还有 5 个空位 
+- 还有 20 个数据库连接
+- 还有 3 台打印机
+- 还有 1 个事件许可
+
+那使用信号量会更简洁。
+
+总之，CV非常灵活，适合复杂问题。信号量更简洁，适配那些有明显资源特征的场景。
+
+另外，从性能开销的角度来看：
+> CV 与 semaphore 最终都可能变成用户态 atomic + 内核 futex；性能差异取决于竞争程度、唤醒模式、mutex 争用、线程数和具体 libc/CPU，实现开销不是选择二者的主要原则。
