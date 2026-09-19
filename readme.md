@@ -15,13 +15,16 @@
   - 并发 Concurrency
   - IPC: Inter-Process Communication
   - 互斥 Mutual Exclusion
-    - 锁
     - Peterson 算法
     - 硬件原语 Hardware Primitives
     - 自旋锁 Spinlock
     - 互斥锁 Mutex
   - 同步 Synchronization
-
-
+    - 生产者消费者问题
+    - 互斥锁解决生产者消费者问题
+    - 条件变量 Conditional Variable
+    - 信号量 Semaphores
+    - 哲学家进餐问题
+  - 死锁 Deadlock
 
 ### Labs

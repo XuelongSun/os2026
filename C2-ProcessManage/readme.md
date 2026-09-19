@@ -761,6 +761,7 @@ A --write-> [buffer] --read-> B
 
 所以，A和B存在“等待另一方执行”的时候，这就是并发带来**同步Synchronization**问题。
 
+#### 生产者消费者问题
 上面这个读写buffer的例子非常经典，因此有个名字：**生产者-消费者问题**。写入数据的A进程是生产者，读取数据的B进程是消费者。很多的进程同步问题，都可以转化为生产者-消费者问题，比如，如何通过多线程实现合法的括号打印：
 ```c
 {} // ✓
@@ -803,8 +804,10 @@ timeout --signal=SIGTERM 0.1s ./pro_con.o 2 2 4 # 运行0.1s
 
 因此，问题的关键是，如何在多线程并发执行时保证输出的合法性？该如何解决生产者-消费者这个并发同步问题？
 
-#### 互斥锁Mutex解决同步问题
-我们能否用解决互斥的方法来解决这个生产者消费者问题呢？但是，互斥只能保证“打印括号”(读写共享buffer)的独占性，不能保证顺序的正确性。怎么办？
+#### 互斥锁解决生产者消费者问题
+我们能否用解决互斥的方法来解决这个生产者消费者问题呢？
+
+但是，互斥只能保证“打印括号”(读写共享buffer)的独占性，不能保证顺序的正确性。怎么办？
 
 问题的本质在于：
 - 没有左括号，就不能有右括号(货架已空，没有东西可以消费)
@@ -817,6 +820,7 @@ timeout --signal=SIGTERM 0.1s ./pro_con.o 2 2 4 # 运行0.1s
 关键代码实现：
 ```c
 // synchronization/producer_consumer_mutex.c
+// 部分代码
 int limit, count = 0;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1112,8 +1116,9 @@ void* consumer(void *args)
 
 另外，这里`sem_wait()`和`sem_post()`的顺序不能颠倒！如果颠倒了，会发生什么问题，这里埋个伏笔，在今后的章节中，我们会讲到。
 
-#### 小节
-我们使用了互斥锁，条件变量和信号量来解决生产者消费者问题，这三个地比较如下：
+---
+
+我们使用了互斥锁，条件变量和信号量来解决生产者消费者问题，这三个比较如下：
 | 抽象                 | 核心问题        | 程序员维护什么         |
 | ------------------ | ----------- | --------------- |
 | Mutex              | 谁能进入临界区？    | ownership       |
@@ -1152,3 +1157,79 @@ Semaphore:
 
 另外，从性能开销的角度来看：
 > CV 与 semaphore 最终都可能变成用户态 atomic + 内核 futex；性能差异取决于竞争程度、唤醒模式、mutex 争用、线程数和具体 libc/CPU，实现开销不是选择二者的主要原则。
+
+#### 哲学家进餐问题
+下面我们再用一个经典的进程同步问题，检验大家对条件变量和信号量的学习情况。
+
+如下左图所示，有5为哲学家和5只筷子，每个哲学家只能拿其左手边和右手边的筷子来进餐，并且只有当拿到两只筷子时才能进餐eating, 否则只能thinking。进餐完成后需要把筷子放下，以供其他哲学家使用。
+
+![](figures/dining-philosophers.png)
+
+我们给哲学家和筷子编号，然后上面右图的情况就是0号和2号哲学家分别拿到了0-1和2-3这两双筷子，于是他们可以吃饭，其余哲学家只能thinking。
+
+分析可知，对编号为 $i$ 的哲学家而言，进餐前都要检查：
+- 左手的筷子(编号 $(i+1)\%5$ )拿得到吗？
+- 右手的筷子(编号 $i$ )拿得到吗？
+
+这本质上是一个"与"逻辑，因此使用**互斥锁 + 条件变量**解决就很自然：
+```c
+bool available[5] = {true, true, true, true, true}; 
+pthread_mutex_lock(&lock);
+while(!(available[left] && available[right])){
+    pthread_cond_wait(&cv, &lock);
+}
+available[left] = available[right] = false;
+printf(" %d got %d\n", phil_id, left);
+printf(" %d got %d\n", phil_id, right);
+pthread_mutex_unlock(&lock);
+
+printf("Philosopher %d is eating...\n", phil_id);
+
+pthread_mutex_lock(&lock);
+available[left] = available[right] = true;
+pthread_cond_broadcast(&cv);
+pthread_mutex_unlock(&lock);
+```
+注意，这里eating并不是临界区，修改筷子的可用状态才是临界区。因此，eating时不用上锁，这是每个哲学家(进程)独立的行为。
+
+那如何用信号量来解决这个问题呢？首先分析需要几个信号量，他们的初值是多少？
+
+每两个相邻的哲学家都会互斥地占有他们之间的那只筷子，所以我们需要5个初值为1的信号量来保证每只筷子被互斥地占有！
+```c
+sem_t chopstick[N];
+void *philosopher(void *id)
+{
+    int phil_id = *((int *)id);
+    int right = phil_id % N;
+    int left = (phil_id + 1) % N;
+    while (1)
+    {
+        sem_wait(&chopstick[left]);
+        sem_wait(&chopstick[right]);
+        printf("Philosopher %d is eating\n", phil_id);
+        sem_post(&chopstick[right]);
+        sem_post(&chopstick[left]);
+    }
+}
+sem_init(&chopstick[i], 0, 1);
+```
+我们运行上述程序会发现:
+```
+ 0 got 1
+ 0 got 0
+Philosopher 0 is eating
+ 0 got 1
+ 3 got 4
+ 1 got 2
+ 2 got 3
+ 4 got 0
+```
+程序会卡住不动！这是为什么？
+
+每个哲学家都拿起了左手边筷子，于是他们都在等另外的哲学家放下一个筷子！循环等待，卡住了！
+
+没错，这就是**死锁DeadLock**！我们要开始讨论的下一个话题。
+
+> 注：使用信号量是可以解决哲学家进餐问题的，只不过我们还需要制定一个拿起筷子的规则，防止这种循环等待的发生，比如规定奇数号的哲学家先拿左，后拿右，偶数相反。
+
+### 死锁DeadLock
