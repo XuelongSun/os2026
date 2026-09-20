@@ -12,10 +12,18 @@ void *philosopher(void *id)
     int left = (phil_id + 1) % N;
     while (1)
     {
-        sem_wait(&chopstick[left]);
-        printf(" %d got %d\n", phil_id, left);
-        sem_wait(&chopstick[right]);
-        printf(" %d got %d\n", phil_id, right);
+        if(phil_id % 2 == 0){
+            sem_wait(&chopstick[right]);
+            printf(" %d got %d\n", phil_id, right);
+            sem_wait(&chopstick[left]);
+            printf(" %d got %d\n", phil_id, left);
+        }
+        else{
+            sem_wait(&chopstick[left]);
+            printf(" %d got %d\n", phil_id, left);
+            sem_wait(&chopstick[right]);
+            printf(" %d got %d\n", phil_id, right);
+        }
         printf("Philosopher %d is eating\n", phil_id);
         sem_post(&chopstick[right]);
         sem_post(&chopstick[left]);
