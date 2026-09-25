@@ -11,7 +11,7 @@
   - 操作系统的发展历史
   - 操作系统的功能和特点
 #### [C2 - Process Manage](/C2-ProcessManage/readme.md)
-  - 程序 - 线程 - 进程
+  - 程序 - 执行流 - 线程 - 进程
   - 并发 Concurrency
   - IPC: Inter-Process Communication
   - 互斥 Mutual Exclusion
@@ -24,7 +24,15 @@
     - 互斥锁解决生产者消费者问题
     - 条件变量 Conditional Variable
     - 信号量 Semaphores
-    - 哲学家进餐问题
+    - 哲学家进餐问题 Dinning Philosophers Problem
   - 死锁 Deadlock
-
+    - 发生条件
+    - 预防 Prevention
+    - 避免 Avoidance
+      - 银行家算法 Banker's Algorithm
+    - 检测与解除
+      - 资源分配图 Resource Allocation Graph
+      - 解除方法
+      - 鸵鸟算法 - Ostrich Algorithm
+#### [C3 - CPU Manage: Schedule]()
 ### Labs
