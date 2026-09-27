@@ -5,34 +5,46 @@
 
 ### Course
 #### [C1 - Introduction](/C1-Introduction/readme.md)
-  - 为什么学习操作系统
-  - 如何学习操作系统
-  - 什么是操作系统
-  - 操作系统的发展历史
-  - 操作系统的功能和特点
+- 为什么学习操作系统
+- 如何学习操作系统
+- 什么是操作系统
+- 操作系统的发展历史
+- 操作系统的功能和特点
+
 #### [C2 - Process Manage](/C2-ProcessManage/readme.md)
-  - 程序 - 执行流 - 线程 - 进程
-  - 并发 Concurrency
-  - IPC: Inter-Process Communication
-  - 互斥 Mutual Exclusion
-    - Peterson 算法
-    - 硬件原语 Hardware Primitives
-    - 自旋锁 Spinlock
-    - 互斥锁 Mutex
-  - 同步 Synchronization
-    - 生产者消费者问题
-    - 互斥锁解决生产者消费者问题
-    - 条件变量 Conditional Variable
-    - 信号量 Semaphores
-    - 哲学家进餐问题 Dinning Philosophers Problem
-  - 死锁 Deadlock
-    - 发生条件
-    - 预防 Prevention
-    - 避免 Avoidance
-      - 银行家算法 Banker's Algorithm
-    - 检测与解除
-      - 资源分配图 Resource Allocation Graph
-      - 解除方法
-      - 鸵鸟算法 - Ostrich Algorithm
-#### [C3 - CPU Manage: Schedule]()
+- 程序 - 执行流 - 线程 - 进程
+- 并发 Concurrency
+- IPC: Inter-Process Communication
+- 互斥 Mutual Exclusion
+  - Peterson 算法
+  - 硬件原语 Hardware Primitives
+  - 自旋锁 Spinlock
+  - 互斥锁 Mutex
+- 同步 Synchronization
+  - 生产者消费者问题
+  - 互斥锁解决生产者消费者问题
+  - 条件变量 Conditional Variable
+  - 信号量 Semaphores
+  - 哲学家进餐问题 Dinning Philosophers Problem
+- 死锁 Deadlock
+  - 发生条件
+  - 预防 Prevention
+  - 避免 Avoidance
+    - 银行家算法 Banker's Algorithm
+  - 检测与解除
+    - 资源分配图 Resource Allocation Graph
+    - 解除方法
+    - 鸵鸟算法 - Ostrich Algorithm
+
+#### [C3 - CPU Manage: Schedule](/C3-Scheduling/readme.md)
+- 非抢占式作业调度 Non-preemtive Job Scheduling
+  - 先来先服务 - FCFS
+  - 短作业优先 - SJF
+  - 优先级调度 - Priority Scheduling
+  - 高响应比优先 - HRRN
+- 抢占式进程调度 Preemptive Process Scheduling
+  - 最短剩余时间优先 - SRTF
+  - 轮转调度 - RR
+  - 
+
 ### Labs
