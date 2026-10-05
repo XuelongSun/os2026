@@ -45,6 +45,10 @@
 - 抢占式进程调度 Preemptive Process Scheduling
   - 最短剩余时间优先 - SRTF
   - 轮转调度 - RR
-  - 
+  - 多级反馈队列 - MLFQ
+  - 完全公平调度 - CFS
+- 实时进程调度 Realtime Scheduling
+  - 最早截止时间优先 - EDF
+  - 最低松弛度优先 - LLF
 
 ### Labs
