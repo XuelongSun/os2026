@@ -50,5 +50,19 @@
 - 实时进程调度 Realtime Scheduling
   - 最早截止时间优先 - EDF
   - 最低松弛度优先 - LLF
+- 进程状态
+- 进程控制与PCB
 
+#### [C4 - Memory Manage:](/C4-MemoryManage/readme.md)
+- 程序装载
+- 单一连续
+- 固定分区
+- 动态分区
+  - 顺序搜索
+  - 索引搜索
+- 内存紧凑
+- 离散分配
+  - 分页
+  - 分段
+  - 段页式
 ### Labs
