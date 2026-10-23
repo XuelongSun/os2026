@@ -36,7 +36,7 @@
     - 解除方法
     - 鸵鸟算法 - Ostrich Algorithm
 
-#### [C3 - CPU Manage: Schedule](/C3-Scheduling/readme.md)
+#### [C3 - CPU Manage: Scheduling](/C3-Scheduling/readme.md)
 - 非抢占式作业调度 Non-preemtive Job Scheduling
   - 先来先服务 - FCFS
   - 短作业优先 - SJF
@@ -53,7 +53,7 @@
 - 进程状态
 - 进程控制与PCB
 
-#### [C4 - Memory Manage:](/C4-MemoryManage/readme.md)
+#### [C4 - Memory Manage](/C4-MemoryManage/readme.md)
 - 程序装载
 - 单一连续
 - 固定分区
@@ -65,4 +65,40 @@
   - 分页
   - 分段
   - 段页式
+- 内存管理的硬件支持
+  - MMU
+  - TLB
+- 虚拟内存
+  - 请求分页
+  - 页面置换
+  - 抖动与工作集
+
+#### [C5 - I/O Manage and File System:](/C5-IOManageFileSystem/readme.md)
+- I/O 管理
+  - I/O 设备
+  - I/O 设备和CPU的协调
+  - I/O 系统的层次结构
+- 文件的逻辑组织
+  - FCB
+  - 目录结构
+  - Unix - inode
+- 文件的物理组织
+  - 连续组织
+  - 链接组织
+    - 隐式链接
+    - 显示链接 - FAT
+    - 索引链接
+    - Linux - Extent
+    - Windows - NTFS
+- 空闲磁盘块管理
+  - 空闲表
+  - 空闲盘块链
+  - 空闲盘区链
+  - Unix - 成组链接法
+  - Bitmaps 位图
+- 文件共享
+  - 硬链接
+  - 软连接
+- 文件保护
+
 ### Labs
