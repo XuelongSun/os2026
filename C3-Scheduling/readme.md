@@ -376,7 +376,7 @@ CFS-Completely Fair Scheduler是Linux系统[^3]采用的调度算法，它基于
 
 [^3]: Linux 从 6.6 开始逐步向 EEVDF 转换，它仍然继承“公平分配 CPU”这个核心目标。 参考：[Linux Kernel](https://kernel.org/doc/html/latest/scheduler/sched-eevdf.html?utm_source=chatgpt.com)。
 
-现实 CPU 只能一次运行一个，所以系统记录每个任务获得 CPU 的“**虚拟运行时间-vruntime**”，并按下式更新：
+现实 CPU 只能一次运行一个，所以系统记录每个任务获得 CPU 的“**虚拟运行时间-vruntime**”，每次调度器都选择当前**vruntime最小**的线程调度，为提高系统的可控性，vruntime按下式更新：
 
 $$
 \Delta v = \frac{1024}{w} \Delta t 

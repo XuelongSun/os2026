@@ -6,7 +6,7 @@ if __name__ == "__main__":
     processes = [
         Process("A",0,5),
         Process("B",1,3),
-        Process("C",2,4),
+        Process("C",2,1),
         # Process("P3",4,2),
     ]
     rt_process = [
@@ -14,9 +14,9 @@ if __name__ == "__main__":
         RTProcess("T2",1,2,6),
         RTProcess("T3",2,2,5),
     ]
-    # scheduler = LLF(rt_process)
-    scheduler = RR(processes,quantum=3)
+    scheduler = FCFS(processes)
+    # scheduler = RR(processes,quantum=2)
     scheduler.run()
     print(scheduler)
     print_metrics(calculate_metrics(scheduler.process, scheduler.segments))
-    plot_gantt(scheduler.process, scheduler.segments, scheduler.name)
+    # plot_gantt(scheduler.process, scheduler.segments, scheduler.name)
