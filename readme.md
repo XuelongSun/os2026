@@ -73,7 +73,7 @@
   - 页面置换
   - 抖动与工作集
 
-#### [C5 - I/O Manage and File System:](/C5-IOManageFileSystem/readme.md)
+#### [C5 - I/O Manage and File System](/C5-IOManageFileSystem/readme.md)
 - I/O 管理
   - I/O 设备
   - I/O 设备和CPU的协调
@@ -102,3 +102,4 @@
 - 文件保护
 
 ### Labs
+#### [实验1：操作系统接口](/Labs/lab1-interface/readme.md)

@@ -11,3 +11,4 @@
 *.swp
 test/
 
+__pycache__/
