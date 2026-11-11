@@ -65,7 +65,7 @@ def producer(i):
         x = (i, random.randint(1,100))
         bb.put(x); produced.append(x)
 
-def consumer(i):
+def consumer():
     while len(consumed) < N:
         x = bb.get(); consumed.append(x)
 
