@@ -202,10 +202,10 @@ FCB:
         x.txt
   ```
   则：
-  - `draw.png`的**绝对路径**为`/B/Y`
-  - 当前目录为`B/`，则`draw.png`的**相对路径**为`/Y`
+  - `draw.png`的**绝对路径**为`/B/X`
+  - 当前目录为`B/`，则`draw.png`的**相对路径**为`/X`
   - `A/B`是目录
-  - `X`是`A/B`的子目录
+  - `X`是`/B`的子目录
   - `L`,`Q`,`N`都是空目录
   - `A/`是`D/`,`E/`,`F/`的父目录
 
@@ -263,6 +263,98 @@ ls -ai
 10985 .    654 ..  12654 file.txt
 ```
 其中，`.`表示当前目录的，`..`表示父目录(上级目录，即：`/home/sxl`)
+
+#### 文件操作接口
+常见的文件和目录操作包括：**创建，读取，修改(写入)和删除**等。在Linux系统中，用户可以通过使用Bash Shell, C语言和Python等方式调用操作系统提供的文件操作接口完成对文件的期望操作。他们都统一调用Linux的系统调用，完成文件和目录的实际操作：
+```mermaid
+flowchart LR
+user[Shell/C/Python] --> syscall[系统调用] --> 文件抽象 --> 文件系统与物理设备
+```
+例如，对于如下一组操作：`创建一个文件，写入 Hello OS，然后读取、删除`。
+
+我们可以分别用这三种用户调用方式来实现：
+- Bash Shell
+  ```bash
+  printf 'Hello OS\n' > hello.txt
+  cat hello.txt
+  rm hello.txt
+  ```
+- C：POSIX 系统调用（无缓冲 I/O）
+    ```c
+    #include <fcntl.h>
+    #include <unistd.h>
+
+    int main(void) {
+        int fd = open("hello.txt",
+                      O_WRONLY | O_CREAT | O_TRUNC,
+                      0644);
+        if (fd == -1) return 1;
+
+        const char msg[] = "Hello OS\n";
+        if (write(fd, msg, sizeof(msg) - 1)
+            != sizeof(msg) - 1) {
+            close(fd);
+            return 1;
+        }
+        if (close(fd) == -1) return 1;
+
+        char buf[32];
+        fd = open("hello.txt", O_RDONLY);
+        if (fd == -1) return 1;
+
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n < 0) {
+            close(fd);
+            return 1;
+        }
+        write(STDOUT_FILENO, buf, (size_t)n);
+        close(fd);
+
+        return unlink("hello.txt") == -1;
+    }
+    ```
+- Python
+  - 使用`os`
+    ```py
+    import os
+    path = "hello.txt"
+
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    try:
+        msg = b"Hello OS\n"
+        written = os.write(fd, msg)
+        if written != len(msg):
+            return 1
+    finally:
+        os.close(fd)         
+
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        buf = os.read(fd, 32)
+    finally:
+        os.close(fd)
+    os.write(1, buf) 
+
+    try:
+        os.unlink(path)
+    except OSError:
+        return 1
+    return 0
+    ```
+  - 使用`pathlib`
+    ```py
+    from pathlib import Path
+
+    p = Path("hello.txt")
+
+    p.write_text("Hello OS\n", encoding="utf-8")
+    print(p.read_text(encoding="utf-8"), end="")
+    p.unlink()
+    ```
+需要注意以下几个问题：
+1. 创建文件通过 open() 完成，操作系统可以根据标志决定是否需要创建它。
+2. 使用`unlink()` 来删除文件，主要是移除目录项中的链接(不保证立即回收数据块)。
+3. 目录不能像普通文件一样直接写入, 因为目录不是一个任由应用程序修改内部字节布局的普通数据文件。修改目录意味着改变文件名与文件对象之间的关联，文件系统必须维护**目录结构和元数据的一致性**。通常通过 `mkdir(),rename(),unlink(),rmdir()` 等专门接口进行操作。
 
 I/O 管理让程序不必直接控制复杂的硬件；文件系统进一步让程序不必直接管理磁盘块。**操作系统正是通过逐层抽象，不断降低应用程序使用硬件资源的复杂度。**
 

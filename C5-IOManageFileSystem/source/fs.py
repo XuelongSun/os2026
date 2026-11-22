@@ -35,10 +35,10 @@ filesystem = {
 
 def resolve(fs, path):
     if not path:
-        return directory
+        return fs
     name = path[0]
     print(f"当前查找：{name}")
-    if name not in directory:
+    if name not in fs:
         raise FileNotFoundError(name)
     return resolve(fs[name], path[1:])
 
@@ -49,5 +49,5 @@ parts = path.strip("/").split("/")
 
 result = resolve(filesystem, parts)
 
-print("文件内容：", result)
+print("file content:", result)
 
