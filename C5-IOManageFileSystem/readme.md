@@ -324,7 +324,7 @@ user[Shell/C/Python] --> syscall[系统调用] --> 文件抽象 --> 文件系统
         msg = b"Hello OS\n"
         written = os.write(fd, msg)
         if written != len(msg):
-            return 1
+            SystemExi(1)
     finally:
         os.close(fd)         
 
@@ -338,8 +338,7 @@ user[Shell/C/Python] --> syscall[系统调用] --> 文件抽象 --> 文件系统
     try:
         os.unlink(path)
     except OSError:
-        return 1
-    return 0
+        SystemExi(1)
     ```
   - 使用`pathlib`
     ```py

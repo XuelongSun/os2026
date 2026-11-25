@@ -14,11 +14,15 @@
 
 [实验4：进程调度（12%）](/Labs/lab4-scheduling/readme.md)
 
-[实验5：（10%）]()
+
+[实验5：连续内存分配（10%）](/Labs/lab5-memory_allocation/readme.md)
+
 
 [实验6：（12%）]()
 
+
 [实验7：（14%）]()
+
 
 [实验8：（16%）]()
 
